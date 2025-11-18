@@ -60,7 +60,12 @@
   <option value="all">सभी पुराने विधानसभा क्षेत्र</option>
   <option value="142">142 - उदयपुर</option>
   <option value="143">143 - उदयपुर ग्रामीण</option>
-  <option value="144">144 - Example AC</option>
+  <option value="138">138 - वल्लभनगर</option>
+  <option value="139">139 - मावली</option>
+  <option value="145">145 - सराडा</option>
+  <option value="146">146 - खेरवाड़ा</option>
+  <option value="147">147 - फ़लासिया</option>
+  <option value="148">148 - गोगुन्दा</option>
 </select>
 
 <div class="search-grid">
@@ -173,6 +178,7 @@ const highlight = ()=>{
 
 // ---------- Load AC ----------
 const loadFiles = async (prefix) => {
+    debugger;
     let i = 1;
     const arrays = [];
     while (true) {
@@ -196,7 +202,7 @@ const loadAC = async ac => {
     showSpinner(true);
     try {
         if (ac === 'all') {
-            const allACs = ['142','143']; // add all AC numbers here
+            const allACs = ['142','143','138','139','145','146','147','148']; // add all AC numbers here
             let allArrays = [];
             for (const acNum of allACs) {
                 const data = await loadFiles(acNum);
