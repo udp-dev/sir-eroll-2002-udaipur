@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>उदयपुर जिले की 2002 की मतदाता सूचियों से मतदाताओं की खोज</title>
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js@7/dist/fuse.min.js"></script>
+  <style>
+    /* --- Styles same as your original code --- */
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:sans-serif;padding:20px;max-width:900px;margin:auto;background:#fff;color:#000}
+    h2{background:#fff;color:#0077cc;padding:12px;border-radius:6px;text-align:center;border:1px solid #ccc}
+    select,input{width:100%;padding:10px;font-size:16px;margin-bottom:10px;border:1px solid #ccc;border-radius:4px}
+    .search-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:15px 0}
+    #status{font-size:14px;margin-bottom:10px;font-weight:bold}
+    #status.loading{color:#c00}
+    #status.loaded{color:#060}
+    #spinner{text-align:center;margin:10px 0;display:none}
+    #spinner svg{width:40px;height:40px}
+    #resetBtn{display:block;margin:15px auto;padding:8px 16px;font-size:15px;background:#0077cc;color:#fff;border:none;border-radius:4px;cursor:pointer}
+    #resetBtn:hover{background:#005fa3}
+    #results{border:1px solid #ccc;border-radius:4px;overflow:hidden}
+    table{width:100%;border-collapse:collapse;font-size:14px}
+    th,td{border:1px solid #ccc;padding:8px;text-align:left}
+    th{background:#f2f2f2}
+    tr:nth-child(even){background:#fafafa}
+    .highlight{background:#fff8c5 !important;font-weight:bold}
+    #pagination{margin-top:10px;text-align:center}
+    #pagination button{padding:6px 12px;margin:0 5px;font-size:14px}
+    footer{text-align:center;padding:12px;margin-top:20px;font-size:15px;font-weight:bold;color:#003366;border-top:1px solid #ccc;background:#f1f1f1}
+    @media (max-width: 768px) {
+      body { padding: 10px; }
+      h2 { font-size: 1.2em; padding: 8px; }
+      select, input { font-size: 14px; padding: 8px; }
+      .search-grid { grid-template-columns: 1fr; }
+      #results { overflow-x: auto; }
+      table { min-width: 800px; }
+      th, td { font-size: 12px; padding: 6px; }
+      #resetBtn { font-size: 14px; padding: 6px 12px; }
+      #pagination button { font-size: 12px; padding: 4px 8px; }
+      footer { font-size: 13px; padding: 8px; }
+    }
+    table { border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    th { background: linear-gradient(#f2f2f2, #e0e0e0); font-weight: bold; color: #333; position: sticky; top: 0; z-index: 1; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+    tr:hover { background: #e6f7ff; transition: background 0.2s; cursor: pointer; }
+    td { transition: background 0.2s; }
+  </style>
+</head>
+<body>
+<h2>उदयपुर जिले की 2002 की मतदाता सूचियों से मतदाताओं की खोज</h2>
+<p id="status" class="loading">डेटा लोड हो रहा है...</p>
+<div id="spinner"><svg viewBox="0 0 40 40">
+  <circle cx="20" cy="20" r="18" stroke="#0077cc" stroke-width="4" fill="none" stroke-linecap="round"
+          stroke-dasharray="90"><animateTransform attributeName="transform" type="rotate"
+          from="0 20 20" to="360 20 20" dur="1s" repeatCount="indefinite"/></circle>
+</svg></div>
+
+<label for="acSelect" style="font-weight:bold;">कृपया अपना SIR E-Roll 2002 का विधानसभा क्षेत्र चुनें:</label>
+<select id="acSelect">
+  <option value="all">सभी पुराने विधानसभा क्षेत्र</option>
+  <option value="142">142 - उदयपुर</option>
+  <option value="143">143 - उदयपुर ग्रामीण</option>
+  <option value="144">144 - Example AC</option>
+</select>
+
+<div class="search-grid">
+  <input type="text" id="acInput" placeholder="विधानसभा क्षेत्र...">
+  <input type="text" id="partInput" placeholder="भाग संख्या...">
+  <input type="text" id="nameInput" placeholder="मतदाता का नाम...">
+  <input type="text" id="relativeInput" placeholder="संबंधी का नाम...">
+  <input type="text" id="epicInput" placeholder="मतदाता पहचान संख्या...">
+</div>
+
+<button id="resetBtn">फ़िल्टर रीसेट</button>
+<div id="results"></div>
+<div id="matchCount" style="text-align:center; margin:10px 0; font-weight:bold; color:#006400;"></div>
+<div id="pagination"></div>
+
+<footer>Developed By : NIC, नोडल अधिकारी (IT Help Desk), जिला निर्वाचन कार्यालय, उदयपुर (राज.)</footer>
+
+<script>
+const HINDI_HEADERS = ['विधानसभा क्षेत्र की संख्या एवं','भाग संख्या','क्रम संख्या','मकान संख्या','मतदाता का नाम','संबन्ध','संबंधी का नाम','लिंग','आयु','मतदाता पहचान संख्या'];
+const HINDI_KEYS = ['﻿विधानसभा क्षेत्र की संख्या एवं','भाग संख्या','क्रम संख्या','मकान संख्या','मतदाता का नाम','संबन्ध','संबंधी का नाम','लिंग','आयु','मतदाता पहचान संख्या'];
+
+let allData = [], filtered = [], currentPage = 1;
+const ROWS_PER_PAGE = 20;
+const $ = s => document.querySelector(s);
+
+const setStatus = (txt, cls) => { $('#status').textContent = txt; $('#status').className = cls; };
+const showSpinner = b => $('#spinner').style.display = b ? 'block' : 'none';
+
+const renderTable = () => {
+    const container = $('#results');
+    container.innerHTML = `<table><thead><tr>${HINDI_HEADERS.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody></tbody></table>`;
+    const tbody = container.querySelector('tbody');
+    const start = (currentPage-1)*ROWS_PER_PAGE;
+    const end = start+ROWS_PER_PAGE;
+    const pageData = filtered.slice(start,end);
+
+    if(pageData.length===0){
+        tbody.innerHTML='<tr><td colspan="10" style="text-align:center;">कोई परिणाम नहीं मिला</td></tr>';
+        $('#pagination').innerHTML='';
+        $('#matchCount').textContent='कुल 0 रिकॉर्ड मिले';
+        return;
+    }
+
+    pageData.forEach(row=>{
+        const tr = document.createElement('tr');
+        HINDI_KEYS.forEach(k=>{
+            const td = document.createElement('td');
+            td.textContent = row[k] ?? '';
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    });
+
+    $('#matchCount').textContent = `कुल ${filtered.length} रिकॉर्ड मिले (दिखाए जा रहे: ${start+1}–${Math.min(end,filtered.length)})`;
+    renderPagination();
+    highlight();
+};
+
+const renderPagination = () => {
+    const totalPages = Math.ceil(filtered.length/ROWS_PER_PAGE);
+    if(totalPages <= 1){ $('#pagination').innerHTML=''; return; }
+    const prev = `<button ${currentPage===1?'disabled':''} onclick="currentPage--;renderTable()">पिछला</button>`;
+    const next = `<button ${currentPage===totalPages?'disabled':''} onclick="currentPage++;renderTable()">अगला</button>`;
+    $('#pagination').innerHTML = `${prev} <span>पेज ${currentPage} / ${totalPages}</span> ${next}`;
+};
+
+let to;
+const search = ()=>{
+    clearTimeout(to);
+    to = setTimeout(()=>{
+        const q = {
+            ac: $('#acInput').value.trim(),
+            part: $('#partInput').value.trim(),
+            name: $('#nameInput').value.trim(),
+            rel: $('#relativeInput').value.trim(),
+            epic: $('#epicInput').value.trim()
+        };
+
+        if(!q.ac && !q.part && !q.name && !q.rel && !q.epic){ 
+            filtered = allData; currentPage=1; renderTable(); return; 
+        }
+
+        filtered = allData.filter(row=>{
+            const acMatch   = !q.ac || String(row[HINDI_KEYS[0]]).includes(q.ac);
+            const partMatch = !q.part || String(row[HINDI_KEYS[1]]).includes(q.part);
+            const nameMatch = !q.name || String(row[HINDI_KEYS[4]]).includes(q.name);
+            const relMatch  = !q.rel || String(row[HINDI_KEYS[6]]).includes(q.rel);
+            const epicMatch = !q.epic || String(row[HINDI_KEYS[9]]).includes(q.epic);
+            return acMatch && partMatch && nameMatch && relMatch && epicMatch;
+        });
+        currentPage=1; renderTable();
+    },200);
+};
+
+const highlight = ()=>{
+    const q = {
+        ac: $('#acInput').value.trim(),
+        part: $('#partInput').value.trim(),
+        name: $('#nameInput').value.trim(),
+        rel: $('#relativeInput').value.trim(),
+        epic: $('#epicInput').value.trim()
+    };
+    document.querySelectorAll('td').forEach(td=>td.classList.remove('highlight'));
+    if(q.ac) document.querySelectorAll('td:nth-child(1)').forEach(td=>td.textContent.includes(q.ac)&&td.classList.add('highlight'));
+    if(q.part) document.querySelectorAll('td:nth-child(2)').forEach(td=>td.textContent.includes(q.part)&&td.classList.add('highlight'));
+    if(q.name) document.querySelectorAll('td:nth-child(5)').forEach(td=>td.textContent.includes(q.name)&&td.classList.add('highlight'));
+    if(q.rel) document.querySelectorAll('td:nth-child(7)').forEach(td=>td.textContent.includes(q.rel)&&td.classList.add('highlight'));
+    if(q.epic) document.querySelectorAll('td:nth-child(10)').forEach(td=>td.textContent.includes(q.epic)&&td.classList.add('highlight'));
+};
+
+// ---------- Load AC ----------
+const loadFiles = async (prefix) => {
+    let i = 1;
+    const arrays = [];
+    while (true) {
+        const fileName = `${prefix}_part_${i}.json`; // use i
+        console.log('Trying to load:', fileName); // DEBUG
+        try {
+            const res = await fetch(fileName);
+            if (!res.ok) break; // No more files
+            const text = await res.text();
+            if (!text.trim()) break; // Empty file
+            arrays.push(JSON.parse(text.replace(/^\uFEFF/, '')));
+            i++;
+        } catch {
+            break;
+        }
+    }
+    return arrays.flat();
+};
+
+const loadAC = async ac => {
+    showSpinner(true);
+    try {
+        if (ac === 'all') {
+            const allACs = ['142','143']; // add all AC numbers here
+            let allArrays = [];
+            for (const acNum of allACs) {
+                const data = await loadFiles(acNum);
+                allArrays.push(data);
+            }
+            allData = allArrays.flat();
+            filtered = allData;
+            currentPage = 1;
+            renderTable();
+            setStatus(`सभी AC: कुल ${allData.length} रिकॉर्ड लोड हुए`, 'loaded');
+            showSpinner(false);
+            return;
+        }
+
+        // Load specific AC files
+        allData = await loadFiles(ac);
+        filtered = allData;
+        currentPage = 1;
+        renderTable();
+        setStatus(`AC ${ac}: कुल ${allData.length} रिकॉर्ड लोड हुए`, 'loaded');
+
+    } catch (err) {
+        console.error(err);
+        setStatus(`डेटा लोड करने में त्रुटि: ${err.message}`, 'loading');
+        allData = [];
+        filtered = [];
+        renderTable();
+    }
+    showSpinner(false);
+};
+
+
+
+
+// ---------- Events ----------
+$('#acSelect').onchange = ()=>{
+    const v = $('#acSelect').value;
+    $('#acInput').value = v==='all'?'':v;
+    loadAC(v);
+};
+
+['acInput','partInput','nameInput','relativeInput','epicInput'].forEach(id=>$(`#${id}`).oninput=search);
+$('#resetBtn').onclick = ()=>{
+    $('#acSelect').value='all';
+    ['acInput','partInput','nameInput','relativeInput','epicInput'].forEach(id=>$(`#${id}`).value='');
+    loadAC('all');
+};
+
+// ---------- Start default AC 142 ----------
+loadAC("all");
+</script>
+
+</body>
+</html>
